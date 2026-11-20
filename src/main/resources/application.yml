@@ -1,0 +1,79 @@
+spring:
+  application:
+    name: shotabra
+  profiles:
+    default: dev
+  threads:
+    virtual:
+      enabled: true
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  thymeleaf:
+    cache: true
+
+server:
+  port: ${SERVER_PORT:8080}
+  # Necesario detrás del proxy de Coolify (Traefik): respeta X-Forwarded-Proto/Host
+  forward-headers-strategy: framework
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+app:
+  # URL pública para el QR (p. ej. https://shotabra.midominio.com).
+  # Vacío = se usa la URL con la que el navegador abrió la página.
+  public-url: ${APP_PUBLIC_URL:}
+  # Orígenes permitidos para el endpoint STOMP (patrones separados por comas).
+  allowed-origins: ${APP_ALLOWED_ORIGINS:*}
+  host-disconnect-timeout: 60s
+  inactive-party-ttl: 6h
+  min-players: 3
+
+logging:
+  level:
+    com.shotabra: INFO
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:postgresql://localhost:5432/shotabra
+    username: shotabra
+    password: shotabra
+  thymeleaf:
+    cache: false
+  web:
+    resources:
+      cache:
+        period: 0
+
+logging:
+  level:
+    com.shotabra: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  # SPRING_DATASOURCE_URL / _USERNAME / _PASSWORD se leen directamente del entorno.
+  datasource:
+    hikari:
+      maximum-pool-size: 10

@@ -1,0 +1,39 @@
+# Solo para desarrollo local. En Coolify se usa el Dockerfile + un recurso PostgreSQL gestionado.
+#   docker compose up --build        -> app (perfil prod) + postgres en http://localhost:8080
+#   ./scripts/dev.sh                  -> solo postgres de aquí + app en perfil dev
+name: shotabra
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: shotabra
+      POSTGRES_USER: shotabra
+      POSTGRES_PASSWORD: shotabra
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shotabra -d shotabra"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/shotabra
+      SPRING_DATASOURCE_USERNAME: shotabra
+      SPRING_DATASOURCE_PASSWORD: shotabra
+      # Vacío = el QR usa la URL con la que se abrió la página (útil en la WiFi de casa)
+      APP_PUBLIC_URL: ""
+      APP_ALLOWED_ORIGINS: "*"
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:

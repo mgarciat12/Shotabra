@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es" data-bs-theme="dark" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#160a26">
+    <meta name="color-scheme" content="dark">
+    <title>Shotabra</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥃</text></svg>">
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/dist/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap-icons/font/bootstrap-icons.min.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body th:data-join-code="${joinCode}" th:data-min-players="${minPlayers}">
+
+<!-- ============================== Barra superior ============================== -->
+<header class="topbar">
+    <button type="button" class="brand btn btn-link p-0 text-decoration-none" data-action="home" aria-label="Inicio">
+        Shotabra <span aria-hidden="true">🥃</span>
+    </button>
+    <div class="d-flex align-items-center gap-2">
+        <span class="party-chip d-none" id="topbar-code"></span>
+        <span class="conn-dot d-none" id="conn-dot" title="Sin conexión" aria-label="Estado de la conexión"></span>
+    </div>
+</header>
+
+<main class="app">
+
+    <!-- ============================== Cargando ============================== -->
+    <section class="screen" id="screen-loading">
+        <div class="m-auto text-center">
+            <div class="spinner-border text-warning" role="status"></div>
+            <p class="mt-3 text-secondary">Cargando…</p>
+        </div>
+    </section>
+
+    <!-- ============================== Inicio ============================== -->
+    <section class="screen d-none" id="screen-home">
+        <div class="hero text-center">
+            <div class="hero-emoji" aria-hidden="true">🍻</div>
+            <h1 class="display-5 fw-black">Shotabra</h1>
+            <p class="lead text-secondary mb-0">Haz que tu objetivo diga tu palabra secreta… sin que se dé cuenta.</p>
+        </div>
+        <div class="d-grid gap-3 mt-auto">
+            <button type="button" class="btn btn-party btn-xl" data-action="show-create">
+                <i class="bi bi-stars"></i> Crear party
+            </button>
+            <button type="button" class="btn btn-outline-light btn-xl" data-action="show-join">
+                <i class="bi bi-door-open"></i> Unirse con código
+            </button>
+        </div>
+        <details class="rules mt-4">
+            <summary>¿Cómo se juega?</summary>
+            <ol class="mt-2 mb-0">
+                <li>Cada jugador recibe en su móvil un <b>objetivo</b> (otro jugador) y una <b>palabra secreta</b>.</li>
+                <li>Charla con normalidad e intenta que tu objetivo diga tu palabra.</li>
+                <li>Cuando la diga, pulsa <b>«¡La dijo!»</b>. Tu objetivo tendrá que confirmarlo.</li>
+                <li>Si lo confirma, pierde la ronda… y se toma un <b>shot</b> 🥃.</li>
+            </ol>
+        </details>
+    </section>
+
+    <!-- ============================== Crear / unirse ============================== -->
+    <section class="screen d-none" id="screen-join">
+        <h2 class="h3 fw-bold mb-3" id="join-title">Únete a la party</h2>
+        <form id="join-form" novalidate autocomplete="off">
+            <div class="mb-3" id="join-code-group">
+                <label for="join-code" class="form-label">Código de la party</label>
+                <input type="text" class="form-control form-control-lg code-input" id="join-code"
+                       maxlength="4" inputmode="text" autocapitalize="characters" spellcheck="false"
+                       placeholder="ABCD" required>
+                <div class="form-text" id="join-code-help">4 letras. Lo ves en la pantalla del host.</div>
+            </div>
+            <div class="mb-3">
+                <label for="join-name" class="form-label">Tu nombre</label>
+                <input type="text" class="form-control form-control-lg" id="join-name"
+                       th:maxlength="${maxNameLength}" maxlength="16" placeholder="¿Cómo te llaman?" required
+                       autocomplete="nickname" enterkeyhint="done">
+            </div>
+            <fieldset class="mb-3">
+                <legend class="form-label fs-6">Elige tu emoji</legend>
+                <div class="emoji-grid" id="emoji-grid" role="radiogroup" aria-label="Emojis">
+                    <button type="button" class="emoji-btn" role="radio" aria-checked="false"
+                            th:each="e : ${emojis}" th:data-emoji="${e}" th:text="${e}">🍕</button>
+                </div>
+            </fieldset>
+            <div class="alert alert-danger d-none" id="join-error" role="alert"></div>
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-party btn-xl" id="join-submit">Entrar</button>
+                <button type="button" class="btn btn-link text-secondary" data-action="home">Volver</button>
+            </div>
+        </form>
+    </section>
+
+    <!-- ============================== Lobby ============================== -->
+    <section class="screen d-none" id="screen-lobby">
+        <div class="text-center">
+            <p class="text-secondary mb-1">Código de la party</p>
+            <div class="big-code" id="lobby-code">····</div>
+            <img class="qr mt-3" id="lobby-qr" alt="Código QR para unirse" width="180" height="180">
+            <div class="mt-2">
+                <button type="button" class="btn btn-sm btn-outline-light" data-action="share">
+                    <i class="bi bi-share"></i> Compartir enlace
+                </button>
+            </div>
+        </div>
+        <h3 class="h6 text-uppercase text-secondary mt-4 mb-2">
+            Jugadores <span class="badge text-bg-secondary" id="lobby-count">0</span>
+        </h3>
+        <ul class="player-list" id="lobby-players"></ul>
+        <div class="mt-auto pt-3 d-grid gap-2">
+            <button type="button" class="btn btn-party btn-xl d-none" id="btn-start" data-action="start" disabled>
+                <i class="bi bi-play-fill"></i> Iniciar juego
+            </button>
+            <p class="text-center text-secondary small mb-0" id="lobby-hint"></p>
+            <button type="button" class="btn btn-link text-secondary" data-action="leave">Salir de la party</button>
+        </div>
+    </section>
+
+    <!-- ============================== Juego ============================== -->
+    <section class="screen d-none" id="screen-game">
+        <p class="text-secondary text-center small mb-2">Ronda <span id="game-round">1</span> · Toca la tarjeta para ocultarla</p>
+        <button type="button" class="secret-card" id="secret-card" data-action="toggle-card" aria-pressed="false">
+            <span class="secret-label">Haz que</span>
+            <span class="secret-target"><span id="card-emoji" class="secret-emoji">❓</span> <span id="card-target">…</span></span>
+            <span class="secret-label">diga</span>
+            <span class="secret-word" id="card-word">…</span>
+            <span class="secret-cover"><i class="bi bi-eye-slash"></i><br>Tarjeta oculta<br><small>Toca para verla</small></span>
+        </button>
+
+        <div class="pending-box d-none mt-3" id="pending-box" role="status">
+            <div class="spinner-grow spinner-grow-sm text-warning"></div>
+            <span>Esperando a que <b id="pending-target"></b> confirme…</span>
+        </div>
+
+        <div class="d-grid gap-2 mt-auto pt-3">
+            <button type="button" class="btn btn-said btn-xl" id="btn-accuse" data-action="accuse">
+                ¡La dijo! <span aria-hidden="true">🎯</span>
+            </button>
+            <button type="button" class="btn btn-outline-light" data-action="toggle-card" id="btn-toggle-card">
+                <i class="bi bi-eye-slash"></i> Ocultar tarjeta
+            </button>
+            <button type="button" class="btn btn-link text-secondary btn-sm d-none" id="btn-game-lobby" data-action="lobby">
+                Terminar ronda y volver al lobby
+            </button>
+        </div>
+        <ul class="mini-players mt-3" id="game-players" aria-label="Jugadores"></ul>
+    </section>
+
+    <!-- ============================== Resultado ============================== -->
+    <section class="screen d-none" id="screen-result">
+        <div class="shot-stage" id="shot-stage" aria-hidden="true">
+            <div class="shot-glass">🥃</div>
+        </div>
+        <div class="text-center">
+            <div class="shot-title">¡SHOT!</div>
+            <p class="fs-4 mb-1"><span id="result-loser-emoji"></span> <b id="result-loser"></b> ha perdido</p>
+            <p class="text-secondary">
+                <span id="result-catcher"></span> le hizo decir <span class="word-pill" id="result-word"></span>
+            </p>
+        </div>
+
+        <h3 class="h6 text-uppercase text-secondary mt-3 mb-2">Así estaba la ronda</h3>
+        <ul class="reveal-list" id="result-reveals"></ul>
+
+        <h3 class="h6 text-uppercase text-secondary mt-3 mb-2">Marcador de shots</h3>
+        <ol class="scoreboard" id="result-scoreboard"></ol>
+
+        <div class="d-grid gap-2 mt-auto pt-3">
+            <button type="button" class="btn btn-party btn-xl d-none" id="btn-restart" data-action="restart">
+                <i class="bi bi-arrow-repeat"></i> Reiniciar juego
+            </button>
+            <button type="button" class="btn btn-outline-light d-none" id="btn-result-lobby" data-action="lobby">
+                <i class="bi bi-people"></i> Volver al lobby
+            </button>
+            <p class="text-center text-secondary small mb-0 d-none" id="result-wait">Esperando a que el host empiece otra ronda…</p>
+        </div>
+    </section>
+</main>
+
+<!-- ============================== Modal de confirmación ============================== -->
+<div class="modal fade" id="accusation-modal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false"
+     aria-labelledby="accusation-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content accusation-content">
+            <div class="modal-body text-center p-4">
+                <div class="display-3 mb-2" aria-hidden="true">🫵</div>
+                <h2 class="h4 fw-bold" id="accusation-title">
+                    <span id="acc-accuser"></span> dice que dijiste
+                </h2>
+                <div class="secret-word my-3" id="acc-word"></div>
+                <p class="fs-5 mb-4">¿Es verdad?</p>
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-party btn-xl" data-action="confirm">Sí, la dije 🥃</button>
+                    <button type="button" class="btn btn-outline-light btn-xl" data-action="reject">No, mentira</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container position-fixed start-50 translate-middle-x p-3" id="toasts" aria-live="polite"></div>
+<div class="confetti" id="confetti" aria-hidden="true"></div>
+
+<script th:src="@{/webjars/bootstrap/dist/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/webjars/sockjs-client/dist/sockjs.min.js}"></script>
+<script th:src="@{/webjars/stomp__stompjs/bundles/stomp.umd.min.js}"></script>
+<script th:src="@{/js/game.js}"></script>
+</body>
+</html>
